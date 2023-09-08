@@ -5,4 +5,4 @@ from .models import Subscriber
 class SubscriberSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscriber
-        fields = ('id', 'email', 'name')
+        fields = ('id', 'email', 'name', 'status_tag')
