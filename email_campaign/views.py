@@ -20,6 +20,7 @@ def add_subscriber(request):
       return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
+# Viewset fuction for unsubscribe users
 @api_view(['PATCH'])
 def unsubscribe(request, email):
    try:
