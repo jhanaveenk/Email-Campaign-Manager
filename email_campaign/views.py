@@ -23,11 +23,16 @@ def add_subscriber(request):
 # Viewset fuction for unsubscribe users
 @api_view(['PATCH'])
 def unsubscribe(request, email):
-   try:
-      subscriber = Subscriber.objects.get(email=email)
-      subscriber.status_tag = "inactive"
-      subscriber.save()
-      return Response({'message': f'{email} unsubscribed successfully.'})
-   except Subscriber.DoesNotExist:
-      return Response({'error': 'Subscriber not found.'}, status=status.HTTP_404_NOT_FOUND)
+   if request.method=='PATCH':
+      email = request.data.get('email', None)
+      if email is not None:
+         try:
+            subscriber = Subscriber.objects.get(email=email)
+            subscriber.status_tag = False
+            subscriber.save()
+            return Response({'message': f'{email} unsubscribed successfully.'})
+         except Subscriber.DoesNotExist:
+            return Response({'error': 'Subscriber not found.'}, status=status.HTTP_404_NOT_FOUND)
+      else:
+         return Response({"message": "Email field is required"}, status=status.HTTP_400_BAD_REQUEST)
 
