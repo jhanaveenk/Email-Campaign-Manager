@@ -9,6 +9,9 @@ class Subscriber(models.Model):
 
    def __str__(self):
       return self.email
+   
+   def status_display(self):
+      return "active" if self.status_tag else "inactive"
 
 ## Databse model for the email campaign fields
 class EmailCampaign(models.Model):

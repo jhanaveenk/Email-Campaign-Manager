@@ -31,6 +31,11 @@ def add_subscriber(request):
     
 
 
+
+# Used Django Database, threading, and a Python queue for managing email tasks. And the goal of this is to optimize the sending emails
+# by using multiple threads to dispatch emails in parallel.
+
+
 # Viewset fuction for unsubscribe users
 @api_view(['PATCH'])
 def unsubscribe(request, email):
@@ -67,7 +72,7 @@ def send_campaign_email(email, campaign_id):
       }
    )
 
-    # Create the email message
+    # Created the email message
    message = EmailMultiAlternatives(
       subject=campaign.subject,
       body=strip_tags(email_content),
