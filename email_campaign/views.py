@@ -1,3 +1,5 @@
+import queue
+import threading
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -9,6 +11,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from datetime import date
 from django.utils.html import strip_tags
+
 
 
 # Viewset fuction for getting the list and add new subscriber
@@ -27,6 +30,7 @@ def add_subscriber(request):
       return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
+
 # Viewset fuction for unsubscribe users
 @api_view(['PATCH'])
 def unsubscribe(request, email):
@@ -44,23 +48,14 @@ def unsubscribe(request, email):
          return Response({"message": "Email field is required"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Viewset fuction for sending daily campaigns to subscribers
-@api_view(['POST'])
-def send_daily_campaign(request):
-    if request.method == 'POST':
-      current_date = date.today()
-      try:
-         campaign = EmailCampaign.objects.get(published_date=current_date)
-      except EmailCampaign.DoesNotExist:
-         return Response({'message': 'No campaign found for today.'}, status=status.HTTP_404_NOT_FOUND)
-      
-      subscribers = Subscriber.objects.filter(status_tag=True)
-      for subscriber in subscribers:
-         send_campaign_email(subscriber.email, campaign)
-      return Response({'message': 'Daily campaign emails sent successfully.'}, status=status.HTTP_200_OK)
-    
+# Function to send email campaign using Pub-Sub and multiple threads
+def send_campaign_email(email, campaign_id):
+   try:
+      campaign = EmailCampaign.objects.get(id=campaign_id)
+   except EmailCampaign.DoesNotExist:
+      return
 
-def send_campaign_email(recipient_email, campaign):
+   # This is to Load and render HTML email template
    email_content = loader.render_to_string(
       'email_campaign/campaign_email_template.html',
       {
@@ -70,14 +65,68 @@ def send_campaign_email(recipient_email, campaign):
          'published_date': campaign.published_date,
          'html_content': campaign.html_content,
       }
-    )
-   
-   # Created the email message
+   )
+
+    # Create the email message
    message = EmailMultiAlternatives(
       subject=campaign.subject,
       body=strip_tags(email_content),
       from_email=settings.EMAIL_HOST_USER,
-      to=[recipient_email],
+      to=[email],
     )
    message.attach_alternative(email_content, "text/html")
    message.send()
+
+
+# Worker function to process email tasks
+def email_worker(email_queue):
+   while True:
+      email_data = email_queue.get()
+      if email_data is None:
+         break
+      send_campaign_email(email_data['email'], email_data['campaign_id'])
+      email_queue.task_done()
+
+
+# Viewset function for sending daily campaigns to subscribers
+@api_view(['POST'])
+def send_daily_campaign(request):
+   if request.method == 'POST':
+      current_date = date.today()
+      try:
+         campaign = EmailCampaign.objects.get(published_date=current_date)
+      except EmailCampaign.DoesNotExist:
+         return Response({'message': 'No campaign found for today.'}, status=status.HTTP_404_NOT_FOUND)
+
+      subscribers = Subscriber.objects.filter(status_tag=True)
+
+      # Created a Python queue for email tasks
+      email_queue = queue.Queue()
+
+      num_threads = 5
+      threads = []
+
+      for _ in range(num_threads):
+         thread = threading.Thread(target=email_worker, args=(email_queue,))
+         thread.start()
+         threads.append(thread)
+
+      # Enqueue email tasks
+      for subscriber in subscribers:
+         email_data = {
+             "email": subscriber.email,
+             "campaign_id": campaign.id,
+         }
+         email_queue.put(email_data)
+
+      email_queue.join()
+
+      for _ in range(num_threads):
+         email_queue.put(None)
+
+      for thread in threads:
+         thread.join()
+
+      return Response({'message': 'Daily campaign emails sent successfully.'}, status=status.HTTP_200_OK)
+
+
