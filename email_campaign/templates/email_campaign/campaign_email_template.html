@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Campaign Email</title>
+</head>
+<body>
+       <h2>{{ subject }}</h2>
+       <p>{{ preview_text }}</p>
+       <p>Read the full article <a href="{{ article_url }}">here</a>.</p>
+       <p>Published on: {{ published_date }}</p>
+       {{ html_content | safe }}
+</body>
+</html>
