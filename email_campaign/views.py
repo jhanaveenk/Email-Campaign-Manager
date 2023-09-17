@@ -1,11 +1,13 @@
 import queue
 import threading
+
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Subscriber, EmailCampaign
 from .serializers import SubscriberSerializer, EmailCampaignSerializer
+
 from django.template import loader
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
@@ -31,11 +33,6 @@ def add_subscriber(request):
     
 
 
-
-# Used Django Database, threading, and a Python queue for managing email tasks. And the goal of this is to optimize the sending emails
-# by using multiple threads to dispatch emails in parallel.
-
-
 # Viewset fuction for unsubscribe users
 @api_view(['PATCH'])
 def unsubscribe(request, email):
@@ -51,6 +48,11 @@ def unsubscribe(request, email):
             return Response({'error': 'Subscriber not found.'}, status=status.HTTP_404_NOT_FOUND)
       else:
          return Response({"message": "Email field is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Used Django Database, threading, and a Python queue for managing email tasks. And the goal of this is to optimize the sending emails
+# by using multiple threads to dispatch emails in parallel.
+
 
 
 # Function to send email campaign using Pub-Sub and multiple threads
@@ -108,7 +110,10 @@ def send_daily_campaign(request):
       # Created a Python queue for email tasks
       email_queue = queue.Queue()
 
+      # worker threads for processing email tasks concurrently
       num_threads = 5
+
+      # list to store references to the worker threads
       threads = []
 
       for _ in range(num_threads):
@@ -116,7 +121,7 @@ def send_daily_campaign(request):
          thread.start()
          threads.append(thread)
 
-      # Enqueue email tasks
+      # Enqueue email tasks --> put to insert data and get to retrive data
       for subscriber in subscribers:
          email_data = {
              "email": subscriber.email,

@@ -11,3 +11,4 @@ class SubscriberAdmin(admin.ModelAdmin):
 # Registered Subscriber model
 admin.site.register(Subscriber, SubscriberAdmin)
 
+admin.site.register(EmailCampaign)
